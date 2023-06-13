@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.job4j.cars.model.User;
 
 import java.util.List;
@@ -11,6 +13,9 @@ import java.util.Optional;
 
 @AllArgsConstructor
 public class UserRepository {
+
+    private static final Logger LOG = LoggerFactory.getLogger(UserRepository.class.getName());
+
     private final SessionFactory sf;
 
     /**
@@ -21,10 +26,15 @@ public class UserRepository {
      */
     public User create(User user) {
         Session session = sf.openSession();
-        session.beginTransaction();
-        session.save(user);
-        session.getTransaction().commit();
-        session.close();
+        try {
+            session.beginTransaction();
+            session.save(user);
+            session.getTransaction().commit();
+            session.close();
+        } catch (Exception e) {
+            session.getTransaction().rollback();
+            LOG.error("save user", e);
+        }
         return user;
     }
 
@@ -35,10 +45,15 @@ public class UserRepository {
      */
     public void update(User user) {
         Session session = sf.openSession();
-        session.beginTransaction();
-        session.update(user);
-        session.getTransaction().commit();
-        session.close();
+        try {
+            session.beginTransaction();
+            session.update(user);
+            session.getTransaction().commit();
+            session.close();
+        } catch (Exception e) {
+            session.getTransaction().rollback();
+            LOG.error("update user", e);
+        }
     }
 
     /**
@@ -48,12 +63,17 @@ public class UserRepository {
      */
     public void delete(int userId) {
         Session session = sf.openSession();
-        session.beginTransaction();
-        var usr = new User();
-        usr.setId(userId);
-        session.delete(usr);
-        session.getTransaction().commit();
-        session.close();
+        try {
+            session.beginTransaction();
+            var usr = new User();
+            usr.setId(userId);
+            session.delete(usr);
+            session.getTransaction().commit();
+            session.close();
+        } catch (Exception e) {
+            session.getTransaction().rollback();
+            LOG.error("delete user", e);
+        }
     }
 
     /**
@@ -62,11 +82,17 @@ public class UserRepository {
      * @return список пользователей.
      */
     public List<User> findAllOrderById() {
+        List<User> result = List.of();
         Session session = sf.openSession();
-        session.beginTransaction();
-        List<User> result = session.createQuery("from User order by id", User.class).list();
-        session.getTransaction().commit();
-        session.close();
+        try {
+            session.beginTransaction();
+            result = session.createQuery("from User order by id", User.class).list();
+            session.getTransaction().commit();
+            session.close();
+        } catch (Exception e) {
+            session.getTransaction().rollback();
+            LOG.error("find all users", e);
+        }
         return result;
     }
 
@@ -76,12 +102,18 @@ public class UserRepository {
      * @return пользователь.
      */
     public Optional<User> findById(int userId) {
+        Optional<User> result = Optional.empty();
         Session session = sf.openSession();
-        session.beginTransaction();
-        User result = session.get(User.class, userId);
-        session.getTransaction().commit();
-        session.close();
-        return Optional.of(result);
+        try {
+            session.beginTransaction();
+            result = Optional.of(session.get(User.class, userId));
+            session.getTransaction().commit();
+            session.close();
+        } catch (Exception e) {
+            session.getTransaction().rollback();
+            LOG.error("find by id", e);
+        }
+        return result;
     }
 
     /**
@@ -91,13 +123,19 @@ public class UserRepository {
      * @return список пользователей.
      */
     public List<User> findByLikeLogin(String key) {
+        List<User> result = List.of();
         Session session = sf.openSession();
-        session.beginTransaction();
-        List<User> result = session.createQuery(
-                "from User as u where u.login like :key", User.class)
-        .setParameter("key", "%" + key + "%").list();
-        session.getTransaction().commit();
-        session.close();
+        try {
+            session.beginTransaction();
+            result = session.createQuery(
+                            "from User as u where u.login like :key", User.class)
+                    .setParameter("key", "%" + key + "%").list();
+            session.getTransaction().commit();
+            session.close();
+        } catch (Exception e) {
+            session.getTransaction().rollback();
+            LOG.error("find by like login", e);
+        }
         return result;
     }
 
@@ -108,15 +146,20 @@ public class UserRepository {
      * @return Optional or user.
      */
     public Optional<User> findByLogin(String login) {
+        Optional<User> result = Optional.empty();
         Session session = sf.openSession();
-        session.beginTransaction();
-        Query<User> query = session.createQuery(
-                "from User as u where u.login = :login", User.class);
-        query.setParameter("login", login);
-        User result = query.uniqueResult();
-        session.getTransaction().commit();
-        session.close();
-        return Optional.of(result);
-
+        try {
+            session.beginTransaction();
+            Query<User> query = session.createQuery(
+                    "from User as u where u.login = :login", User.class);
+            query.setParameter("login", login);
+            result = query.uniqueResultOptional();
+            session.getTransaction().commit();
+            session.close();
+        } catch (Exception e) {
+            session.getTransaction().rollback();
+            LOG.error("find by login", e);
+        }
+        return result;
     }
 }
